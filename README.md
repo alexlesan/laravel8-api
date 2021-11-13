@@ -1,5 +1,5 @@
 ## Install
-
+- rename .env.example to .env and update connections to database.
 - composer update.
 - php artisan migrate:fresh.
 - php artisan serve
