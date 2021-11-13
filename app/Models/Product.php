@@ -5,14 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class Product extends Model
 {
-    use HasApiTokens, HasFactory;
+    use HasFactory;
 
     protected $fillable = [
-        "product_name", "barcode", "sku", "ean13", "asin", "isbn", "price", "stock"
+        "product_name", "barcode", "sku", "ean13", "asin", "isbn", "price", "stock", "user_id",
     ];
 
 
@@ -20,6 +21,18 @@ class Product extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Populate user_id on creating new product
+     */
+    public function save($options=[])
+    {
+        $this->user_id = auth()->id();
+        $this->slug = Str::slug($this->product_name);
+        parent::save($options);
+    }
+
+
 }
 
 

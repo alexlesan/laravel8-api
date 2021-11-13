@@ -2,95 +2,78 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
-use App\Models\Product;
+use App\Http\Requests\ProductRequest;
 use App\Http\Resources\ProductResource;
-use Illuminate\Support\Facades\Validator;
+use App\Models\Product;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
-class ProductController extends Controller
+class ProductController extends BaseController
 {
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function index()
     {
         $products = Product::latest()->paginate(25);
-        return ProductResource::collection($products);
+
+        return $this->handleResponse(ProductResource::collection($products), "Product list");
+
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @param ProductRequest $request
+     * @return Response
      */
-    public function store(Request $request)
+    public function store(ProductRequest $request)
     {
-        $data = $request->all();
-
-        $validator = Validator::make($data, [
-            "product_name" => 'required',
-            'barcode' => 'required',
-            'price' => 'required',
-        ]);
-
-        if ($validator->fails()) {
-            return response(['error' => $validator->errors(), 'Validation Error']);
-        }
-
-        $product = Product::create($data);
-        return new ProductResource($product);
+        $product = Product::create($request->safe()->all());
+        return $this->handleResponse(new ProductResource($product), "New product was created", 201);
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @param int $id
+     * @return Response
      */
-    public function show(Product $product)
+    public function show($id)
     {
-        return new ProductResource($product);
+        $product = Product::find($id);
+        if (is_null($product)) {
+            return $this->handleError("Product was not found", []);
+        }
+        return $this->handleResponse(new ProductResource($product), "Product details");
     }
 
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @param ProductRequest $request
+     * @param Product $product
+     * @return JsonResponse
      */
-    public function update(Request $request, Product $product)
+    public function update(ProductRequest $request, Product $product): JsonResponse
     {
-        $data = $request->all();
-
-        $validator = Validator::make($data, [
-            'product_name' => 'required',
-        ]);
-
-        if ($validator->fails()) {
-            return response(['error' => $validator->errors(), 'Validation Error']);
-        }
-
-        $product->update($request->all());
-        return new ProductResource($product);
+        $product->update($request->safe()->all());
+        return $this->handleResponse(new ProductResource($product), "Product updated successfully.");
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @param int $id
+     * @return Response
      */
     public function destroy(Product $product)
     {
         $product->delete();
-        return new ProductResource($product);
+        return $this->handleResponse(new ProductResource($product), "Product was deleted.");
     }
 
 
@@ -99,7 +82,7 @@ class ProductController extends Controller
      */
     public function search($title)
     {
-        $products = Product::where('product_name', 'like', '%'.$title.'%')->get();
-        return ProductResource::collection($products);
+        $products = Product::where('product_name', 'like', '%' . $title . '%')->get();
+        return $this->handleResponse(ProductResource::collection($products), "Search product result.");
     }
 }

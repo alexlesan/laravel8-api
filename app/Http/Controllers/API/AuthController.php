@@ -2,61 +2,53 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\AuthRequest;
-use Illuminate\Http\Request;
+use App\Http\Requests\UserRegistrationRequest;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
-class AuthController extends Controller
+class AuthController extends BaseController
 {
 
     /**
-     * register user
+     * Create new user
+     * @param UserRegistrationRequest $request
+     * @return JsonResponse
      */
-    public function register(Request $request)
+    public function register(UserRegistrationRequest $request)
     {
-        $validatedData = $request->validate([
-            'email' => 'email|required|unique:users',
-            'password' => 'required'
-        ]);
-
-        $validatedData['password'] = Hash::make($request->password);
-
-        $user = User::create($validatedData);
-
-        $accessToken = $user->createToken('authToken')->accessToken;
-
-        return response(['user' => $user, 'access_token' => $accessToken], 201);
+        $user = User::create($request->safe()->only(['email', 'name', 'password']));
+        $accessToken = $user->createToken(env("TOKEN_AUTH_KEY"))->plainTextToken;
+        return $this->handleResponse(['user' => $user, 'access_token' => $accessToken], "User created successfully.");
     }
 
     /**
      * Login user
+     * @param AuthRequest $request
+     * @return JsonResponse
      */
-    public function login(Request $request)
+    public function login(AuthRequest $request)
     {
-        $loginData = $request->validate([
-            'email' => 'email|required',
-            'password' => 'required'
-        ]);
-
-        if (!auth()->attempt($loginData)) {
-            return response(['message' => 'User does not exist, please check your details'], 400);
+        if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
+            $auth = Auth::user();
+            return $this->handleResponse([
+                'name' => $auth->name,
+                'token' => $auth->createToken(env("TOKEN_AUTH_KEY"))->plainTextToken,
+            ], 'User logged-in!');
+        } else {
+            return $this->handleError('Unauthorised.', ['error' => 'Unauthorised']);
         }
-
-        $accessToken = auth()->user()->createToken('authToken')->accessToken;
-
-        return response(['user' => auth()->user(), 'access_token' => $accessToken]);
     }
 
     /**
      * Logout user
+     * @return JsonResponse
+     *
      */
     public function logout()
     {
         auth()->user()->tokens()->logout();
-        return [
-            'message' => 'Logged out successfully',
-        ];
+        return $this->handleResponse([], "Logged out successfuly");
     }
 }
