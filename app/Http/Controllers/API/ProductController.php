@@ -7,19 +7,24 @@ use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Kreait\Firebase\Factory;
+use Kreait\Firebase\ServiceAccount;
 
 class ProductController extends BaseController
 {
+    public function __construct()
+    {
+    }
+
     /**
      * Display a listing of the resource.
      *
-     * @return Response
+     * @return JsonResponse
      */
-    public function index()
+    public function index(): JsonResponse
     {
-        $products = Product::latest()->paginate(25);
-
-        return $this->handleResponse(ProductResource::collection($products), "Product list");
+        $products = $this->getDb()->getReference()->orderByKey()->getSnapshot();
+        return $this->handleResponse([$products->getValue()], "Product list.");
 
     }
 
@@ -27,27 +32,35 @@ class ProductController extends BaseController
      * Store a newly created resource in storage.
      *
      * @param ProductRequest $request
-     * @return Response
+     * @return JsonResponse
      */
-    public function store(ProductRequest $request)
+    public function store(ProductRequest $request): JsonResponse
     {
-        $product = Product::create($request->safe()->all());
-        return $this->handleResponse(new ProductResource($product), "New product was created", 201);
+        $newProduct = $this->getDb()
+            ->getReference('products')
+            ->push(
+                $request->safe()->all()
+            );
+        $result = $newProduct->getValue();
+        $result['key'] = $newProduct->getKey();
+        return $this->handleResponse($result, "New product was created", 201);
     }
 
     /**
      * Display the specified resource.
      *
-     * @param int $id
-     * @return Response
+     * @param $key
+     * @return JsonResponse
      */
-    public function show($id)
+    public function show($key): JsonResponse
     {
-        $product = Product::find($id);
+        $url = env('FIREBASE_DATABASE_NAME').'/' . $key;
+        $product = $this->getDb()->getReference($url)->getValue();
+        $product['key'] = $key;
         if (is_null($product)) {
             return $this->handleError("Product was not found", []);
         }
-        return $this->handleResponse(new ProductResource($product), "Product details");
+        return $this->handleResponse($product, "Product details");
     }
 
 
@@ -55,34 +68,27 @@ class ProductController extends BaseController
      * Update the specified resource in storage.
      *
      * @param ProductRequest $request
-     * @param Product $product
+     * @param $key
      * @return JsonResponse
      */
-    public function update(ProductRequest $request, Product $product): JsonResponse
+    public function update(ProductRequest $request, $key): JsonResponse
     {
-        $product->update($request->safe()->all());
-        return $this->handleResponse(new ProductResource($product), "Product updated successfully.");
+        $url = env('FIREBASE_DATABASE_NAME').'/' . $key;
+        $product = $this->getDb()->getReference($url)->update($request->safe()->all());
+        return $this->handleResponse($product, "Product updated successfully.");
     }
 
     /**
      * Remove the specified resource from storage.
      *
      * @param int $id
-     * @return Response
+     * @return JsonResponse
      */
-    public function destroy(Product $product)
+    public function destroy($key): JsonResponse
     {
-        $product->delete();
-        return $this->handleResponse(new ProductResource($product), "Product was deleted.");
+        $url = env('FIREBASE_DATABASE_NAME').'/' . $key;
+        $product = $this->getDb()->getReference($url)->remove();
+        return $this->handleResponse($product, "Product was deleted.");
     }
 
-
-    /**
-     * Search for a product
-     */
-    public function search($title)
-    {
-        $products = Product::where('product_name', 'like', '%' . $title . '%')->get();
-        return $this->handleResponse(ProductResource::collection($products), "Search product result.");
-    }
 }

@@ -19,14 +19,9 @@ Route::post('login', [\App\Http\Controllers\API\AuthController::class, 'login'])
 
 Route::group(['middleware' => ['auth:sanctum']], function(){
     Route::post('/logout', [\App\Http\Controllers\API\AuthController::class, 'logout']);
-    Route::get('/products/search/{title}', [\App\Http\Controllers\API\ProductController::class,'search']);
+    Route::get('/products/', [\App\Http\Controllers\API\ProductController::class, 'index'])->name('product.all');
+    Route::post('/products/', [\App\Http\Controllers\API\ProductController::class, 'store'])->name('product.create');
+    Route::put('/products/{key}', [\App\Http\Controllers\API\ProductController::class, 'update'])->name('product.update');
+    Route::delete('/products/{key}', [\App\Http\Controllers\API\ProductController::class, 'destroy'])->name('product.delete');
+    Route::get('/products/{key}', [\App\Http\Controllers\API\ProductController::class, 'show'])->name('product.show');
 });
-
-/*
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-*/
-
-
-Route::apiResource('products', \App\Http\Controllers\API\ProductController::class)->middleware('auth:sanctum');
